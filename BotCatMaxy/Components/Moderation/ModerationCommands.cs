@@ -143,6 +143,23 @@ namespace BotCatMaxy
             await ReplyAsync(embed: infractions.GetEmbed(userRef, Context.Guild, amount: amount, showLinks: true));
         }
 
+        [Command("history")]
+        [Summary("Views a user's moderation history")]
+        [CanWarn]
+        public async Task CheckUserHistoryAsync(UserRef userRef = null, int amount = 5)
+        {
+            userRef ??= new UserRef(Context.User as IGuildUser);
+            List<ModerationHistoryItem> moderationHistory = userRef.GetModerationHistory(Context.Guild);
+            if (moderationHistory?.Count is null or 0)
+            {
+                await ReplyAsync($"{userRef.Name()} has no moderation history.");
+                return;
+            }
+            await ReplyAsync(
+                embed: moderationHistory.GetEmbed(userRef, Context.Guild, amount: amount)
+            );
+        }
+
         [Command("removewarn")]
         [Summary("Removes a warn from a user.")]
         [Alias("warnremove", "removewarning")]

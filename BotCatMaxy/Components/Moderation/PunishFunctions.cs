@@ -220,6 +220,118 @@ namespace BotCatMaxy.Moderation
             return embed.Build();
         }
 
+        public struct ModerationHistoryInfo
+        {
+            public int itemsToday;
+            public int items7Days;
+            public int items30Days;
+            public int totalItems;
+            public List<string> itemStrings;
+
+            public ModerationHistoryInfo(List<ModerationHistoryItem> moderationHistoryItems, int amount = 5)
+            {
+                itemsToday = 0;
+                items7Days = 0;
+                items30Days = 0;
+                totalItems = 0;
+                itemStrings = new List<string> { "" };
+
+                if (moderationHistoryItems.Count < amount)
+                {
+                    amount = moderationHistoryItems.Count;
+                }
+                int n = 0;
+                for (int i = 0; i < moderationHistoryItems.Count; i++)
+                {
+                    ModerationHistoryItem item = moderationHistoryItems[i];
+
+                    TimeSpan dateAgo = DateTime.UtcNow.Subtract(item.DateInitiated);
+                    totalItems++;
+
+                    if (dateAgo.Days < 1)
+                        itemsToday++;
+
+                    if (dateAgo.Days <= 7)
+                        items7Days++;
+
+                    if (dateAgo.Days <= 30)
+                        items30Days++;
+
+                    if (n < amount)
+                    {
+                        // TODO: Add log link
+                        string timeAgo = dateAgo.LimitedHumanize(2);
+
+                        string itemInfo = $"[{MathF.Abs(i - moderationHistoryItems.Count)}] ({item.Type}) {item.Reason} - {timeAgo}";
+                        n++;
+
+                        //So we don't go over embed character limit of 9000
+                        if (itemStrings.Select(str => str.Length).Sum() + itemInfo.Length >= 5800)
+                            return;
+
+                        if ((itemStrings.LastOrDefault() + itemInfo).Length < 1024)
+                        {
+                            if (itemStrings.LastOrDefault()?.Length is not null or 0) itemStrings[itemStrings.Count - 1] += "\n";
+                            itemStrings[^1] += itemInfo;
+                        }
+                        else
+                        {
+                            itemStrings.Add(itemInfo);
+                        }
+                    }
+                }
+            }
+        }
+
+        public static Embed GetEmbed(this List<ModerationHistoryItem> moderationHistoryItems, UserRef userRef, IGuild guild, int amount = 5)
+        {
+            ModerationHistoryInfo data = new(moderationHistoryItems, amount);
+
+            EmbedBuilder embed = new();
+
+                // Guild/User Info
+            embed.WithAuthor(userRef)
+                .WithGuildAsFooter(guild, "ID: " + userRef.ID)
+                .WithColor(Color.Blue)
+                .WithCurrentTimestamp()
+                // Items in Time Frame Info
+                .AddField("Today", data.itemsToday)
+                .AddField("Last 7 days", data.items7Days)
+                .AddField("Last 30 days", data.items30Days)
+                // Actual history info
+                .AddField(
+                    $"Moderation History ({data.totalItems} {"Items".Pluralize(data.totalItems})",
+                    data.itemStrings[0]
+                );
+
+            data.itemStrings.RemoveAt(0);
+
+            foreach (string s in data.itemStrings)
+                embed.AddField("------------------------------------------------------------", s);
+
+            return embed.Build();
+        }
+
+        public static List<ModerationHistoryItem> GetModerationHistory(this UserRef userRef, IGuild guild)
+        {
+            List<ModerationHistoryItem> moderationHistory = new();
+
+            TempActionList guildTempActs = guild.LoadFromFile<TempActionList>(true);
+            List<TempAct> userTempActs = guildTempActs.tempBans.Concat(guildTempActs.tempMutes)
+                .Where(tempAct => tempAct.User == userRef.ID)
+                .ToList();
+
+            foreach (TempAct userTempAct in userTempActs)
+                moderationHistory.Add(new ModerationHistoryItem(userTempAct));
+
+            foreach (Infraction infraction in userRef.LoadInfractions(guild, false))
+                moderationHistory.Add(new ModerationHistoryItem(infraction, userRef));
+
+            moderationHistory.Sort((a, b) => DateTime.Compare(a.DateInitiated, b.DateInitiated));
+
+            return moderationHistory;
+        }
+
         public static async Task TempBan(this UserRef userRef, TimeSpan time, string reason, ICommandContext context, TempActionList actions = null)
         {
             TempAct tempBan = new TempAct(userRef, time, reason);
