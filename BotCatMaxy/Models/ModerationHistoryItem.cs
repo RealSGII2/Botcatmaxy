@@ -8,26 +8,27 @@ namespace BotCatMaxy.Models
 {
     public record ModerationHistoryItem
     {
-        public ModerationHistoryItem(TempAct tempAct)
+        public ModerationHistoryItem(ActRecord tempAct, ulong userID)
         {
-            UserID = tempAct.User;
-            DateInitiated = tempAct.DateBanned;
-            Reason = tempAct.Reason;
+            UserID = userID;
+            DateInitiated = tempAct.time;
+            Reason = tempAct.reason;
+            Type = (ModerationHistoryItemType) Enum.Parse(typeof(ModerationHistoryItemType), tempAct.reason);
         }
+
+        public ModerationHistoryItem(ActRecord tempAct, UserRef userRef)
+            => new ModerationHistoryItem(tempAct, userRef.ID);
 
         public ModerationHistoryItem(Infraction infraction, ulong userID)
         {
             UserID = userID;
             DateInitiated = infraction.Time;
             Reason = infraction.Reason;
+            Type = ModerationHistoryItemType.infraction;
         }
 
         public ModerationHistoryItem(Infraction infraction, UserRef userRef)
-        {
-            UserID = userRef.ID;
-            DateInitiated = infraction.Time;
-            Reason = infraction.Reason;
-        }
+            => new ModerationHistoryItem(infraction, userRef.ID);
 
         public ulong UserID { get; init; }
         public DateTime DateInitiated { get; init; }
@@ -37,8 +38,8 @@ namespace BotCatMaxy.Models
 
     public enum ModerationHistoryItemType
     {
-        Ban,
-        Mute,
-        Infraction
+        tempban,
+        tempmute,
+        infraction
     }
 }

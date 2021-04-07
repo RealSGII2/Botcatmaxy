@@ -112,89 +112,6 @@ namespace BotCatMaxy.Moderation
             return infractions;
         }
 
-        public struct InfractionsInDays
-        {
-            public float sum;
-            public int count;
-        }
-
-        public struct InfractionInfo
-        {
-            public InfractionsInDays infractionsToday;
-            public InfractionsInDays infractions30Days;
-            public InfractionsInDays totalInfractions;
-            public InfractionsInDays infractions7Days;
-            public List<string> infractionStrings;
-            public InfractionInfo(List<Infraction> infractions, int amount = 5, bool showLinks = false)
-            {
-                infractionsToday = new InfractionsInDays();
-                infractions30Days = new InfractionsInDays();
-                totalInfractions = new InfractionsInDays();
-                infractions7Days = new InfractionsInDays();
-                infractionStrings = new List<string> { "" };
-
-                infractions.Reverse();
-                if (infractions.Count < amount)
-                {
-                    amount = infractions.Count;
-                }
-                int n = 0;
-                for (int i = 0; i < infractions.Count; i++)
-                {
-                    Infraction infraction = infractions[i];
-
-                    //Gets how long ago all the infractions were
-                    TimeSpan dateAgo = DateTime.UtcNow.Subtract(infraction.Time);
-                    totalInfractions.sum += infraction.Size;
-                    totalInfractions.count++;
-                    if (dateAgo.Days <= 7)
-                    {
-                        infractions7Days.sum += infraction.Size;
-                        infractions7Days.count++;
-                    }
-                    if (dateAgo.Days <= 30)
-                    {
-                        infractions30Days.sum += infraction.Size;
-                        infractions30Days.count++;
-                        if (dateAgo.Days < 1)
-                        {
-                            infractionsToday.sum += infraction.Size;
-                            infractionsToday.count++;
-                        }
-                    }
-
-                    string size = "";
-                    if (infraction.Size != 1)
-                    {
-                        size = "(" + infraction.Size + "x) ";
-                    }
-
-                    if (n < amount)
-                    {
-                        string jumpLink = "";
-                        string timeAgo = dateAgo.LimitedHumanize(2);
-                        if (showLinks && !infraction.LogLink.IsNullOrEmpty()) jumpLink = $" [[Logged Here]({infraction.LogLink})]";
-                        string infracInfo = $"[{MathF.Abs(i - infractions.Count)}] {size}{infraction.Reason}{jumpLink} - {timeAgo}";
-                        n++;
-
-                        //So we don't go over embed character limit of 9000
-                        if (infractionStrings.Select(str => str.Length).Sum() + infracInfo.Length >= 5800)
-                            return;
-
-                        if ((infractionStrings.LastOrDefault() + infracInfo).Length < 1024)
-                        {
-                            if (infractionStrings.LastOrDefault()?.Length is not null or 0) infractionStrings[infractionStrings.Count - 1] += "\n";
-                            infractionStrings[^1] += infracInfo;
-                        }
-                        else
-                        {
-                            infractionStrings.Add(infracInfo);
-                        }
-                    }
-                }
-            }
-        }
-
         public static Embed GetEmbed(this List<Infraction> infractions, UserRef userRef, IGuild guild, int amount = 5, bool showLinks = false)
         {
             InfractionInfo data = new(infractions, amount, showLinks);
@@ -220,69 +137,6 @@ namespace BotCatMaxy.Moderation
             return embed.Build();
         }
 
-        public struct ModerationHistoryInfo
-        {
-            public int itemsToday;
-            public int items7Days;
-            public int items30Days;
-            public int totalItems;
-            public List<string> itemStrings;
-
-            public ModerationHistoryInfo(List<ModerationHistoryItem> moderationHistoryItems, int amount = 5)
-            {
-                itemsToday = 0;
-                items7Days = 0;
-                items30Days = 0;
-                totalItems = 0;
-                itemStrings = new List<string> { "" };
-
-                if (moderationHistoryItems.Count < amount)
-                {
-                    amount = moderationHistoryItems.Count;
-                }
-                int n = 0;
-                for (int i = 0; i < moderationHistoryItems.Count; i++)
-                {
-                    ModerationHistoryItem item = moderationHistoryItems[i];
-
-                    TimeSpan dateAgo = DateTime.UtcNow.Subtract(item.DateInitiated);
-                    totalItems++;
-
-                    if (dateAgo.Days < 1)
-                        itemsToday++;
-
-                    if (dateAgo.Days <= 7)
-                        items7Days++;
-
-                    if (dateAgo.Days <= 30)
-                        items30Days++;
-
-                    if (n < amount)
-                    {
-                        // TODO: Add log link
-                        string timeAgo = dateAgo.LimitedHumanize(2);
-
-                        string itemInfo = $"[{MathF.Abs(i - moderationHistoryItems.Count)}] ({item.Type}) {item.Reason} - {timeAgo}";
-                        n++;
-
-                        //So we don't go over embed character limit of 9000
-                        if (itemStrings.Select(str => str.Length).Sum() + itemInfo.Length >= 5800)
-                            return;
-
-                        if ((itemStrings.LastOrDefault() + itemInfo).Length < 1024)
-                        {
-                            if (itemStrings.LastOrDefault()?.Length is not null or 0) itemStrings[itemStrings.Count - 1] += "\n";
-                            itemStrings[^1] += itemInfo;
-                        }
-                        else
-                        {
-                            itemStrings.Add(itemInfo);
-                        }
-                    }
-                }
-            }
-        }
-
         public static Embed GetEmbed(this List<ModerationHistoryItem> moderationHistoryItems, UserRef userRef, IGuild guild, int amount = 5)
         {
             ModerationHistoryInfo data = new(moderationHistoryItems, amount);
@@ -299,10 +153,7 @@ namespace BotCatMaxy.Moderation
                 .AddField("Last 7 days", data.items7Days)
                 .AddField("Last 30 days", data.items30Days)
                 // Actual history info
-                .AddField(
-                    $"Moderation History ({data.totalItems} {"Items".Pluralize(data.totalItems})",
-                    data.itemStrings[0]
-                );
+                .AddField($"Moderation History ({data.totalItems} {"Items".Pluralize(data.totalItems)}", data.itemStrings[0]);
 
             data.itemStrings.RemoveAt(0);
 
@@ -316,13 +167,10 @@ namespace BotCatMaxy.Moderation
         {
             List<ModerationHistoryItem> moderationHistory = new();
 
-            TempActionList guildTempActs = guild.LoadFromFile<TempActionList>(true);
-            List<TempAct> userTempActs = guildTempActs.tempBans.Concat(guildTempActs.tempMutes)
-                .Where(tempAct => tempAct.User == userRef.ID)
-                .ToList();
+            List<ActRecord> userTempActs = userRef.LoadActRecord(guild);
 
-            foreach (TempAct userTempAct in userTempActs)
-                moderationHistory.Add(new ModerationHistoryItem(userTempAct));
+            foreach (ActRecord userTempAct in userTempActs)
+                moderationHistory.Add(new ModerationHistoryItem(userTempAct, userRef));
 
             foreach (Infraction infraction in userRef.LoadInfractions(guild, false))
                 moderationHistory.Add(new ModerationHistoryItem(infraction, userRef));

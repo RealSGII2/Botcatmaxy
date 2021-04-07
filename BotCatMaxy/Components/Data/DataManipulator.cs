@@ -189,6 +189,10 @@ namespace BotCatMaxy.Data
             if (actRecord == null && createDir) actRecord = new List<ActRecord>();
             return actRecord;
         }
+
+        public static List<ActRecord> LoadActRecord(this UserRef userRef, IGuild guild, bool createDir = false)
+            => userRef.ID.LoadActRecord(guild, createDir);
+
         public static void SaveActRecord(this ulong userID, IGuild guild, List<ActRecord> acts)
         {
             var collection = guild.GetActHistoryCollection(true);
